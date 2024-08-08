@@ -28,6 +28,9 @@ public class UsageTests
 		results[0].Should().BeEquivalentTo("AAA acf70d64-60c9-4e8c-a716-99e831d26e78 BBB");
 		results[1].Should().BeEquivalentTo("AccessViolationException");
 		results[2].Should().BeEquivalentTo("This is a test");
+		results[3].Should().BeEquivalentTo("Async rules!");
+		results[4].Should().BeEquivalentTo("AccessViolationException");
+		results[5].Should().BeEquivalentTo("This is a test");
 	}
 }
 
@@ -38,7 +41,18 @@ internal sealed class TestExample : IExample
 		return string.Join(" ", prefix, "acf70d64-60c9-4e8c-a716-99e831d26e78", postfix);
 	}
 
+	public async Task<string> AsyncTest()
+	{
+		await Task.Delay(10);
+		return "Async rules!";
+	}
+
 	public void ThrowException()
+	{
+		throw new AccessViolationException("This is a test");
+	}
+
+	public Task AsyncThrow()
 	{
 		throw new AccessViolationException("This is a test");
 	}

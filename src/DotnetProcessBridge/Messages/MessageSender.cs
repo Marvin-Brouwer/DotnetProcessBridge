@@ -17,15 +17,30 @@ internal sealed class MessageSender : IMessageSender
         _cancellationToken = cancellationToken;
     }
 
-    public Task<TReturn> DispatchAsync<TReturn>(MethodBase method, object?[] parameters)
+    public Task<TReturn> DispatchTask<TReturn>(MethodBase method, object?[] parameters)
     {
-        return Task.FromResult(Dispatch<TReturn>(method, parameters));
-    }
-    public Task DispatchAsync(MethodBase method, object?[] parameters)
-    {
-        Dispatch(method, parameters);
-        return Task.CompletedTask;
-    }
+		try
+		{
+			var result = Dispatch<TReturn>(method, parameters);
+			return Task.FromResult(result);
+		}
+		catch (Exception ex)
+		{
+			return Task.FromException<TReturn>(ex);
+		}
+	}
+    public Task DispatchTask(MethodBase method, object?[] parameters)
+	{
+		try
+		{
+			Dispatch(method, parameters);
+			return Task.CompletedTask;
+		}
+		catch (Exception ex)
+		{
+			return Task.FromException(ex);
+		}
+	}
 
     public TReturn Dispatch<TReturn>(MethodBase method, object?[] parameters)
     {
@@ -50,7 +65,6 @@ internal sealed class MessageSender : IMessageSender
         if (Environment.OSVersion.Platform == PlatformID.Win32NT) _writeStream.WaitForPipeDrain();
 #pragma warning restore CA1416 // Validate platform compatibility
 
-        if (returnType == typeof(void)) return default!;
         if (_cancellationToken.IsCancellationRequested) return default!;
 
         using var reader = new StreamReader(_readStream, leaveOpen: true);
@@ -60,6 +74,9 @@ internal sealed class MessageSender : IMessageSender
 			var (isResult, returnvalue) = reader.ReadResult<TReturn>(timeId, _cancellationToken);
 
 			if (!isResult) continue;
+			if (returnType == typeof(void)) return default!;
+			if (returnType == typeof(Task)) return default!;
+			if (returnType == typeof(ValueTask)) return default!;
 			return returnvalue;
         }
 

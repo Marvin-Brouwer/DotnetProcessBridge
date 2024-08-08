@@ -20,3 +20,18 @@ catch (Exception ex)
 	var result3 = ex.Message;
 	Console.WriteLine(result3);
 }
+
+var result4 = await client.Dispatch.AsyncTest();
+Console.WriteLine(result4);
+
+try
+{
+	await client.Dispatch.AsyncThrow();
+}
+catch (Exception ex)
+{
+	var result5 = ex.GetType().Name;
+	Console.WriteLine(result5);
+	var result6 = ex.Message;
+	Console.WriteLine(result6);
+}

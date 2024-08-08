@@ -25,4 +25,14 @@ internal sealed class ExampleDispatcher : IDispatcher, IExample
 	{
 		Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!);
 	}
+
+	Task<string> IExample.AsyncTest()
+	{
+		return Sender.DispatchTask<string>(MethodBase.GetCurrentMethod()!);
+	}
+
+	Task IExample.AsyncThrow()
+	{
+		return Sender.DispatchTask(MethodBase.GetCurrentMethod()!);
+	}
 }

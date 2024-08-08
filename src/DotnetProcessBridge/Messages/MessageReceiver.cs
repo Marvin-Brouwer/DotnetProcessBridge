@@ -54,11 +54,11 @@ internal sealed class MessageReceiver
             if (!_handlers.TryGetValue(methodName, out var delegateDefinition)) continue;
 
             var (handler, methodInfo) = delegateDefinition;
-            HandleMessage(reader, writer, id, handler, methodInfo);
+            await HandleMessage(reader, writer, id, handler, methodInfo);
         }
     }
 
-    private async void HandleMessage(StreamReader reader, StreamWriter writer, string id, BridgeDelegate handler, MethodInfo methodInfo)
+    private async Task HandleMessage(StreamReader reader, StreamWriter writer, string id, BridgeDelegate handler, MethodInfo methodInfo)
     {
         var parameterInfo = methodInfo.GetParameters();
         var parameters = await reader.ReadParameters(parameterInfo, _cancellationToken);
@@ -66,12 +66,27 @@ internal sealed class MessageReceiver
 
 		try
 		{
-			var returnValue = handler(parameters);
+			var returnValue = await handler(parameters);
 
-			if (methodInfo.ReturnType != typeof(void))
+			if (methodInfo.ReturnType == typeof(void))
 			{
-				await writer.WriteReturnValue(id, returnValue, _cancellationToken);
+				await writer.WriteReturnValue(id, _cancellationToken);
+				return;
 			}
+
+			if (methodInfo.ReturnType == typeof(Task))
+			{
+				await writer.WriteReturnValue(id, _cancellationToken);
+				return;
+			}
+
+			if (methodInfo.ReturnType == typeof(ValueTask))
+			{
+				await writer.WriteReturnValue(id, _cancellationToken);
+				return;
+			}
+
+			await writer.WriteReturnValue(id, returnValue, _cancellationToken);
 		}
 		catch (TargetInvocationException ex)
 		{

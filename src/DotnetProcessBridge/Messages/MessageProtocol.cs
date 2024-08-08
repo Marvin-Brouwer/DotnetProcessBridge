@@ -147,6 +147,22 @@ internal static class MessageProtocol
 	}
 
 	/// <summary>
+	/// Writes a serialized result
+	/// <code>
+	/// {Result}<paramref name="id"/>{Spacer}{NewLine}
+	/// </code>
+	/// </summary>
+	public static async Task WriteReturnValue(this StreamWriter writer, string id, CancellationToken cancellationToken)
+	{
+		if (cancellationToken.IsCancellationRequested) return;
+
+		writer.Write(Marker.Result);
+		await writer.WriteAsync(id.AsMemory(), cancellationToken);
+		writer.WriteLine(Marker.Spacer);
+		await writer.FlushAsync(cancellationToken);
+	}
+
+	/// <summary>
 	/// Writes a serialized exception
 	/// <code>
 	/// {Exception}<paramref name="id"/>{Spacer}<typeparamref name="TValue"/>{Spacer}<paramref name="exception"/>{NewLine}
@@ -157,6 +173,7 @@ internal static class MessageProtocol
 	{
 		if (cancellationToken.IsCancellationRequested) return;
 
+		await writer.FlushAsync(cancellationToken);
 		writer.Write(Marker.Exception);
 		await writer.WriteAsync(id.AsMemory(), cancellationToken);
 		writer.Write(Marker.Spacer);
@@ -194,6 +211,11 @@ internal static class MessageProtocol
 
 		if ((char)nextByte == Marker.Result)
 		{
+			if (typeof(TReturn) == typeof(void)) return (true, default!);
+			if (typeof(TReturn) == typeof(Task)) return (true, default!);
+			if (typeof(TReturn) == typeof(ValueTask)) return (true, default!);
+
+			// TODO unpack if Task<T> or ValueTask<T>
 			var returnValue = JsonConvert.DeserializeObject<TReturn>(returnString, SerializationConstants.JsonSettings)!;
 			return (true, returnValue);
 		}

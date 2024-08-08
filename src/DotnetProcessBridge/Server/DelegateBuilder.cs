@@ -1,10 +1,11 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace DotnetProcessBridge.Server;
 
 internal sealed class DelegateBuilder
 {
-	internal delegate object? BridgeDelegate(params object?[] parameters);
+	internal delegate Task<object?> BridgeDelegate(params object?[] parameters);
 
 	internal interface IDelegateMap : IReadOnlyDictionary<string, (BridgeDelegate, MethodInfo)>;
     private sealed class DelegateMap : Dictionary<string, (BridgeDelegate, MethodInfo)>, IDelegateMap { }
@@ -15,15 +16,20 @@ internal sealed class DelegateBuilder
         var interfaceType = typeof(TInterface);
         foreach (var method in interfaceType.GetMethods())
 		{
-			if (method.ReturnType == typeof(Task<>))
-				throw new NotSupportedException("Not yet supported");
-			if (method.ReturnType == typeof(Task))
-				throw new NotSupportedException("Not yet supported");
-			if (method.ReturnType == typeof(IAsyncResult))
-				throw new NotSupportedException("Not yet supported");
-
 			var key = interfaceType.FullName + '.' + method.Name;
-            BridgeDelegate delegateFunc = (parameters) => method.Invoke(handler, parameters);
+
+			if (method.ReturnType.GetInterface(nameof(IAsyncResult)) is not null)
+			{
+				BridgeDelegate delegateTask = (parameters) => {
+					var result = method.Invoke(handler, parameters);
+					if (result is null) return Task.FromResult<object?>(null);
+					return Unsafe.As<object, Task<object?>>(ref result);
+				};
+				delegates.Add(key, (delegateTask, method));
+				continue;
+			}
+
+            BridgeDelegate delegateFunc = (parameters) => Task.FromResult(method.Invoke(handler, parameters));
             delegates.Add(key, (delegateFunc, method));
         }
 
