@@ -2,7 +2,6 @@ using DotnetProcessBridge.Client;
 using DotnetProcessBridge.Messages;
 
 using System.Reflection;
-
 namespace DotnetProcessBridge.Child.TestModels;
 
 /// <summary>
@@ -34,5 +33,20 @@ internal sealed class ExampleDispatcher : IDispatcher, IExample
 	Task IExample.AsyncThrow()
 	{
 		return Sender.DispatchTask(MethodBase.GetCurrentMethod()!);
+	}
+
+	ValueTask<string> IExample.ValueTask(int number)
+	{
+		return Sender.DispatchValueTask<string>(MethodBase.GetCurrentMethod()!, number);
+	}
+
+	ValueTask IExample.EmptyValueTask()
+	{
+		return Sender.DispatchValueTask(MethodBase.GetCurrentMethod()!);
+	}
+
+	ValueTask IExample.ThrowingValueTask()
+	{
+		return Sender.DispatchValueTask(MethodBase.GetCurrentMethod()!);
 	}
 }

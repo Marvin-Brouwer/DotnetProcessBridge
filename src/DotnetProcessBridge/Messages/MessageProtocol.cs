@@ -186,7 +186,7 @@ internal static class MessageProtocol
 		await writer.FlushAsync(cancellationToken);
 	}
 
-	public static (bool isResult, TReturn result) ReadResult<TReturn>(this StreamReader reader, long expectedId, CancellationToken cancellationToken)
+	public static (bool isResult, TReturn result) ReadResult<TReturn>(this StreamReader reader, long expectedId, Type returnType, CancellationToken cancellationToken)
 	{
 		if (cancellationToken.IsCancellationRequested) return (false, default!);
 
@@ -207,18 +207,21 @@ internal static class MessageProtocol
 		_ = reader.Read();
 
 		var returnString = reader.ReadLine();
-		// TODO throw
-		if (string.IsNullOrWhiteSpace(returnString)) return (false, default!);
 
 		if ((char)nextByte == Marker.Result)
 		{
-			if (typeof(TReturn) == typeof(void)) return (true, default!);
+			if (returnType == typeof(void)) return (true, default!);
+			// TODO throw
+			if (string.IsNullOrWhiteSpace(returnString)) return (false, default!);
 
 			var returnValue = JsonConvert.DeserializeObject<TReturn>(returnString, SerializationConstants.JsonSettings)!;
 			return (true, returnValue);
 		}
 		if ((char)nextByte == Marker.Exception)
 		{
+			// TODO throw
+			if (string.IsNullOrWhiteSpace(returnString)) return (false, default!);
+
 			// Find the first index of this, so we don't need to do string escape gymnastics in the serialized result.
 			var spacerPosition = returnString.IndexOf(Marker.Spacer);
 			var exceptionTypeName = returnString[new Range(0, spacerPosition)]!;

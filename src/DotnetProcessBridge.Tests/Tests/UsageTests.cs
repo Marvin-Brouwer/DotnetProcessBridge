@@ -2,6 +2,7 @@ using DotnetProcessBridge.Child.TestModels;
 using DotnetProcessBridge.Tests.ExternalInvocation;
 
 using FluentAssertions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DotnetProcessBridge.Tests.Tests;
 
@@ -31,6 +32,9 @@ public class UsageTests
 		results[3].Should().BeEquivalentTo("Async rules!");
 		results[4].Should().BeEquivalentTo("AccessViolationException");
 		results[5].Should().BeEquivalentTo("This is a test");
+		results[6].Should().BeEquivalentTo("420");
+		results[7].Should().BeEquivalentTo("");
+		results[8].Should().BeEquivalentTo("This is a test");
 	}
 }
 
@@ -53,6 +57,21 @@ internal sealed class TestExample : IExample
 	}
 
 	public Task AsyncThrow()
+	{
+		throw new AccessViolationException("This is a test");
+	}
+
+	public ValueTask<string> ValueTask(int number)
+	{
+		return new ValueTask<string>(Task.FromResult(number.ToString()));
+	}
+
+	public async ValueTask EmptyValueTask()
+	{
+		await Task.Delay(10);
+	}
+
+	public ValueTask ThrowingValueTask()
 	{
 		throw new AccessViolationException("This is a test");
 	}

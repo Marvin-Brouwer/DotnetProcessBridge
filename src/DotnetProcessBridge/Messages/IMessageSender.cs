@@ -9,4 +9,7 @@ public interface IMessageSender
 
 	Task DispatchTask(MethodBase method, params object?[] parameters);
 	Task<TReturn> DispatchTask<TReturn>(MethodBase method, params object?[] parameters);
+
+	ValueTask DispatchValueTask(MethodBase method, params object?[] parameters);
+	ValueTask<TReturn> DispatchValueTask<TReturn>(MethodBase method, params object?[] parameters);
 }

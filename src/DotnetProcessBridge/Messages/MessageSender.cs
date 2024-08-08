@@ -17,7 +17,16 @@ internal sealed class MessageSender : IMessageSender
         _cancellationToken = cancellationToken;
     }
 
-    public Task<TReturn> DispatchTask<TReturn>(MethodBase method, object?[] parameters)
+	public ValueTask<TReturn> DispatchValueTask<TReturn>(MethodBase method, object?[] parameters)
+	{
+		return new ValueTask<TReturn>(DispatchTask<TReturn>(method, parameters));
+	}
+	public ValueTask DispatchValueTask(MethodBase method, object?[] parameters)
+	{
+		return new ValueTask(DispatchTask(method, parameters));
+	}
+
+	public Task<TReturn> DispatchTask<TReturn>(MethodBase method, object?[] parameters)
     {
 		try
 		{
@@ -71,7 +80,7 @@ internal sealed class MessageSender : IMessageSender
         while (!_cancellationToken.IsCancellationRequested)
         {
             if (!_readStream.CanRead) continue;
-			var (isResult, returnvalue) = reader.ReadResult<TReturn>(timeId, _cancellationToken);
+			var (isResult, returnvalue) = reader.ReadResult<TReturn>(timeId, returnType, _cancellationToken);
 
 			if (!isResult) continue;
 			if (returnType == typeof(void)) return default!;

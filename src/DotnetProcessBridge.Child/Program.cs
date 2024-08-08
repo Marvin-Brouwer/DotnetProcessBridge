@@ -35,3 +35,26 @@ catch (Exception ex)
 	var result6 = ex.Message;
 	Console.WriteLine(result6);
 }
+
+var result7 = await client.Dispatch.ValueTask(420);
+Console.WriteLine(result7);
+
+try
+{
+	await client.Dispatch.EmptyValueTask();
+	Console.WriteLine(string.Empty);
+}
+catch (Exception ex)
+{
+	Console.WriteLine(ex.Message);
+}
+
+try
+{
+	await client.Dispatch.ThrowingValueTask();
+	Console.WriteLine(string.Empty);
+}
+catch (Exception ex)
+{
+	Console.WriteLine(ex.Message);
+}

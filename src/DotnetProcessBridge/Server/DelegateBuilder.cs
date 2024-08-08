@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -20,7 +21,6 @@ internal sealed class DelegateBuilder
 
 			if (method.ReturnType.GetInterface(nameof(IAsyncResult)) is not null)
 			{
-				// TODO verify valueTask
 				BridgeDelegate delegateTask = (parameters) => {
 					var result = method.Invoke(handler, parameters);
 					if (result is null) return Task.FromResult<object?>(null);
@@ -30,8 +30,32 @@ internal sealed class DelegateBuilder
 				delegates.Add(key, (delegateTask, method));
 				continue;
 			}
+			if (method.ReturnType == typeof(ValueTask))
+			{
+				BridgeDelegate delegateTask = async (parameters) => {
+					var result = method.Invoke(handler, parameters);
+					if (result is null) throw new UnreachableException();
+					var task = result.GetType().GetMethod(nameof(ValueTask.AsTask))!.Invoke(result, Array.Empty<object>())!;
+					await Unsafe.As<object, Task>(ref task);
+					return default!;
+				};
+				delegates.Add(key, (delegateTask, method));
+				continue;
+			}
+			if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+			{
+				BridgeDelegate delegateTask = (parameters) => {
+					var result = method.Invoke(handler, parameters);
+					if (result is null) throw new UnreachableException();
+					// Unpack the ValueTask using reflection
+					var task = result.GetType().GetMethod(nameof(ValueTask<object>.AsTask))!.Invoke(result, Array.Empty<object>())!;
+					return Unsafe.As<object, Task<object?>>(ref task);
+				};
+				delegates.Add(key, (delegateTask, method));
+				continue;
+			}
 
-            BridgeDelegate delegateFunc = (parameters) => Task.FromResult(method.Invoke(handler, parameters));
+			BridgeDelegate delegateFunc = (parameters) => Task.FromResult(method.Invoke(handler, parameters));
             delegates.Add(key, (delegateFunc, method));
         }
 
