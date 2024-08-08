@@ -1,10 +1,9 @@
-﻿using System.Reflection;
+using System.Reflection;
 
-namespace DotnetProcessBridge.Messages
+namespace DotnetProcessBridge.Messages;
+
+public interface IMessageSender
 {
-    public interface IMessageSender
-    {
-        void Dispatch(MethodBase method, params object?[] parameters);
-        TReturn Dispatch<TReturn>(MethodBase method, params object?[] parameters);
-    }
+    void Dispatch(MethodBase method, params object?[] parameters);
+    TReturn Dispatch<TReturn>(MethodBase method, params object?[] parameters);
 }

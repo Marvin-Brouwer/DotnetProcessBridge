@@ -1,8 +1,6 @@
-﻿
-namespace DotnetProcessBridge.Client
+namespace DotnetProcessBridge.Client;
+
+public interface IProcessBridgeClient<TInterface> : IConnectionStatus, IAsyncDisposable
 {
-    public interface IProcessBridgeClient<TInterface> : IConnectionStatus, IAsyncDisposable
-    {
-        TInterface Dispatch { get; }
-    }
+    TInterface Dispatch { get; }
 }

@@ -1,7 +1,6 @@
-﻿namespace DotnetProcessBridge.Child.TestModels
+namespace DotnetProcessBridge.Child.TestModels;
+
+public interface IExample
 {
-    public interface IExample
-    {
-        public string AppendGuid(string prefix, string postfix);
-    }
+    public string AppendGuid(string prefix, string postfix);
 }

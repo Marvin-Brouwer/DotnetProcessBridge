@@ -1,9 +1,8 @@
-﻿using DotnetProcessBridge.Messages;
+using DotnetProcessBridge.Messages;
 
-namespace DotnetProcessBridge.Client
+namespace DotnetProcessBridge.Client;
+
+public interface IDispatcher
 {
-    public interface IDispatcher
-    {
-        IMessageSender Sender { set; }
-    }
+    IMessageSender Sender { set; }
 }
