@@ -1,15 +1,15 @@
 > [!CAUTION]  
 > This project is an experiment, it's meant to illustrate the possibility.  
 >
-> - It has not been tested on thread safety. (unplanned)
+> - It has not been tested on thread safety (unplanned)
 > - It does not support generics (currently)
 > - It does not handle Exceptions (currently)
 
 <span></span>
 
 > [!TIP]  
-> This is probably not the best way to do things.  
-> If you feel yourself in the situation where you'd need to share functionality between two processes, perhaps re-evaluate your solution.
+> This is probably not the best way to do things anyways.  
+> If you find yourself in the situation where you'd need to share functionality between two processes, perhaps it's worth to re-evaluate your solution.
 
 # DotnetProcessBridge
 
