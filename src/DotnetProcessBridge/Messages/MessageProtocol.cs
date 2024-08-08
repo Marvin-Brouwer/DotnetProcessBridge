@@ -199,6 +199,7 @@ internal static class MessageProtocol
 		var id = ReadId(reader);
 		if (id != expectedId.ToString(IdFormat))
 		{
+			// TODO read into concurrent dictionary and unref by id instead of reading sequentially
 			throw new NotImplementedException("TODO read into concurrent dictionary and unref by id instead of reading sequentially");
 		}
 
@@ -212,10 +213,7 @@ internal static class MessageProtocol
 		if ((char)nextByte == Marker.Result)
 		{
 			if (typeof(TReturn) == typeof(void)) return (true, default!);
-			if (typeof(TReturn) == typeof(Task)) return (true, default!);
-			if (typeof(TReturn) == typeof(ValueTask)) return (true, default!);
 
-			// TODO unpack if Task<T> or ValueTask<T>
 			var returnValue = JsonConvert.DeserializeObject<TReturn>(returnString, SerializationConstants.JsonSettings)!;
 			return (true, returnValue);
 		}

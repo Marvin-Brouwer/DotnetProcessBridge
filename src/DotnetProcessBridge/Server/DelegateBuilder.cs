@@ -20,9 +20,11 @@ internal sealed class DelegateBuilder
 
 			if (method.ReturnType.GetInterface(nameof(IAsyncResult)) is not null)
 			{
+				// TODO verify valueTask
 				BridgeDelegate delegateTask = (parameters) => {
 					var result = method.Invoke(handler, parameters);
 					if (result is null) return Task.FromResult<object?>(null);
+					// At runtime this is some generated AsyncBox type thing, it has the same properties as a Task<T>
 					return Unsafe.As<object, Task<object?>>(ref result);
 				};
 				delegates.Add(key, (delegateTask, method));

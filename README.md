@@ -3,7 +3,7 @@
 >
 > - It has not been tested on thread safety (unplanned)
 > - It does not support generics (currently)
-> - It does not handle Exceptions (currently)
+> - Exception stack traces are chaos (currently)
 
 <span></span>
 
