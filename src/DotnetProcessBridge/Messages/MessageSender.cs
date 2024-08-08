@@ -1,38 +1,9 @@
-using DotnetProcessBridge.Constants;
-
-using Newtonsoft.Json;
-
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Reflection;
 
 namespace DotnetProcessBridge.Messages;
 
-/// <summary>
-/// TODO: Create a message format IE:
-/// <code>
-/// { 
-///     success: true,
-///     result: "Return value",
-///     error: null,
-/// }
-/// </code>
-/// The current implementation expects a line by line format, which will break horribly if a method ever is requested which isn't delegated.
-/// Also this doesn't support exception.
-/// Alternatively, we could prepend IE:
-/// <code>
-/// Invoke: InterfaceName.MethodName
-/// Param: "AAA"
-/// Param: "BBB"
-/// 
-/// Result: "AAA acf70d64-60c9-4e8c-a716-99e831d26e78 BBB"
-/// 
-/// Invoke: InterfaceName.MethodName
-/// Param: 123
-/// 
-/// Exception: System.Exception { Message: ..... }
-/// </code>
-/// </summary>
 internal sealed class MessageSender : IMessageSender
 {
     private readonly PipeStream _readStream;
@@ -65,28 +36,19 @@ internal sealed class MessageSender : IMessageSender
         Dispatch<object?>(method, typeof(void), parameters);
     }
 
-    // TODO LOCK?
     private TReturn Dispatch<TReturn>(MethodBase method, Type returnType, object?[] parameters)
     {
         using var writer = new StreamWriter(_writeStream, leaveOpen: true);
         // This method base comes with the full type name, as opposed to regular reflection.
         var methodName = method.Name;
+		var ticks = new DateTime(2016, 1, 1).Ticks;
+		var timeId = DateTime.Now.Ticks - ticks;
 
-        if (_cancellationToken.IsCancellationRequested) return default!;
-        writer.WriteLine(methodName);
-        foreach (var parameter in parameters)
-        {
-            if (_cancellationToken.IsCancellationRequested) break;
-            var parameterString = JsonConvert.SerializeObject(parameter, SerializationConstants.JsonSettings).AsMemory();
-            writer.WriteLine(parameterString);
-        }
-        writer.Flush();
-
-        if (_cancellationToken.IsCancellationRequested) return default!;
+		if (_cancellationToken.IsCancellationRequested) return default!;
+		writer.WriteMethodCall(timeId, methodName, parameters, _cancellationToken);
 #pragma warning disable CA1416 // Validate platform compatibility
         if (Environment.OSVersion.Platform == PlatformID.Win32NT) _writeStream.WaitForPipeDrain();
 #pragma warning restore CA1416 // Validate platform compatibility
-
 
         if (returnType == typeof(void)) return default!;
         if (_cancellationToken.IsCancellationRequested) return default!;
@@ -95,12 +57,10 @@ internal sealed class MessageSender : IMessageSender
         while (!_cancellationToken.IsCancellationRequested)
         {
             if (!_readStream.CanRead) continue;
+			var (isResult, returnvalue) = reader.ReadResult<TReturn>(timeId, _cancellationToken);
 
-            var returnString = reader.ReadLine();
-            if (string.IsNullOrWhiteSpace(returnString)) continue;
-
-            var returnValue = JsonConvert.DeserializeObject<TReturn>(returnString, SerializationConstants.JsonSettings)!;
-            return returnValue;
+			if (!isResult) continue;
+			return returnvalue;
         }
 
         throw new UnreachableException();

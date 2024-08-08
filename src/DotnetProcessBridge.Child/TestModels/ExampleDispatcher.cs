@@ -16,8 +16,13 @@ internal sealed class ExampleDispatcher : IDispatcher, IExample
 {
     public IMessageSender Sender { set; private get; } = default!;
 
-    string IExample.AppendGuid(string prefix, string postfix)
-    {
-        return Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!, prefix, postfix);
-    }
+	string IExample.AppendGuid(string prefix, string postfix)
+	{
+		return Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!, prefix, postfix);
+	}
+
+	string IExample.ThrowException(string message)
+	{
+		return Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!, message);
+	}
 }

@@ -20,11 +20,14 @@ public class UsageTests
 		// Create a server pipe bound to the interface
 		await using var server = ProcessBridge.CreateServer<IExample, TestExample>();
 
-		var result = direct
+		var resultOutput = direct
 			? assemblyToTest.InvokeDirect(server.ReadHandle, server.WriteHandle)
 			: await assemblyToTest.InvokeProcess(server.ReadHandle, server.WriteHandle);
 
-		result.Should().BeEquivalentTo("AAA acf70d64-60c9-4e8c-a716-99e831d26e78 BBB" + Environment.NewLine);
+		var results = resultOutput.Split(Environment.NewLine);
+		results[0].Should().BeEquivalentTo("AAA acf70d64-60c9-4e8c-a716-99e831d26e78 BBB");
+		results[1].Should().BeEquivalentTo("AccessViolationException");
+		results[2].Should().BeEquivalentTo("This is a test");
 	}
 }
 
@@ -33,5 +36,10 @@ internal sealed class TestExample : IExample
 	public string AppendGuid(string prefix, string postfix)
 	{
 		return string.Join(" ", prefix, "acf70d64-60c9-4e8c-a716-99e831d26e78", postfix);
+	}
+
+	public string ThrowException(string message)
+	{
+		throw new AccessViolationException(message);
 	}
 }

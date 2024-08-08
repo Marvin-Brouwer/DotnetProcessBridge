@@ -22,7 +22,6 @@ public sealed class ProcessBridgeServer<TInterface> : IAsyncDisposable
         _cancellationToken = _cancellationTokenSource.Token;
 
 		// Create 2 anonymous pipes (read and write) for duplex communications (each pipe is one-way)
-		// TODO see if this can be a single InOut direction
 		_readStream = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
         ReadHandle = _readStream.GetClientHandleAsString();
         _writeStream = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);

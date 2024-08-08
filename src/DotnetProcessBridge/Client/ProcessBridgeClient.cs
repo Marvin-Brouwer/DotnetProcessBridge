@@ -22,7 +22,6 @@ public sealed class ProcessBridgeClient<TInterface, TDispatch> : IProcessBridgeC
 
         // Create 2 anonymous pipes (read and write) for duplex communications (each pipe is one-way)
         // Handles are mirrored to the server
-        // TODO see if this can be a single InOut direction
         _readStream = new AnonymousPipeClientStream(PipeDirection.In, writeHandle);
         _writeStream = new AnonymousPipeClientStream(PipeDirection.Out, readHandle);
 

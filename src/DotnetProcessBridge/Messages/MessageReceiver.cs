@@ -46,55 +46,45 @@ internal sealed class MessageReceiver
             if (!_readStream.CanRead) continue;
 
 
-            var methodQualifiedName = await reader.ReadLineAsync(_cancellationToken);
-            if (string.IsNullOrEmpty(methodQualifiedName)) continue;
-            if (!_handlers.TryGetValue(methodQualifiedName, out var delegateDefinition)) continue;
+            var methodHandle = await reader.ReadMethodHandle(_cancellationToken);
+			if (!methodHandle.HasValue) continue;
+			var (id, methodName) = methodHandle.Value;
+
+			if (string.IsNullOrEmpty(methodName)) continue;
+            if (!_handlers.TryGetValue(methodName, out var delegateDefinition)) continue;
 
             var (handler, methodInfo) = delegateDefinition;
-            HandleMessage(reader, writer, handler, methodInfo);
+            HandleMessage(reader, writer, id, handler, methodInfo);
         }
     }
 
-    private async void HandleMessage(StreamReader reader, StreamWriter writer, BridgeDelegate handler, MethodInfo methodInfo)
+    private async void HandleMessage(StreamReader reader, StreamWriter writer, string id, BridgeDelegate handler, MethodInfo methodInfo)
     {
         var parameterInfo = methodInfo.GetParameters();
+        var parameters = await reader.ReadParameters(parameterInfo, _cancellationToken);
+		if (_cancellationToken.IsCancellationRequested) return;
 
-        var parameters = await ReadParameters(reader, parameterInfo, _cancellationToken);
-        var returnValue = handler(parameters);
+		try
+		{
+			var returnValue = handler(parameters);
 
-        if (_cancellationToken.IsCancellationRequested) return;
-
-        if (methodInfo.ReturnType != typeof(void))
-        {
-            var returnString = JsonConvert.SerializeObject(returnValue, SerializationConstants.JsonSettings).AsMemory();
-            await writer.WriteLineAsync(returnString, _cancellationToken);
-            await writer.FlushAsync(_cancellationToken);
-
+			if (methodInfo.ReturnType != typeof(void))
+			{
+				await writer.WriteReturnValue(id, returnValue, _cancellationToken);
+			}
+		}
+		catch (TargetInvocationException ex)
+		{
+			if (ex.InnerException is null)
+				await writer.WriteException(id, ex, _cancellationToken);
+			else
+				await writer.WriteException(id, ex.InnerException, _cancellationToken);
+		}
+		finally
+		{
 #pragma warning disable CA1416 // Validate platform compatibility
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT) _writeStream.WaitForPipeDrain();
+			if (Environment.OSVersion.Platform == PlatformID.Win32NT) _writeStream.WaitForPipeDrain();
 #pragma warning restore CA1416 // Validate platform compatibility
-        }
-    }
-
-    public async Task<object?[]> ReadParameters(StreamReader reader, ParameterInfo[] parameterInfos, CancellationToken cancellationToken)
-    {
-        if (parameterInfos.Length == 0) return Array.Empty<object?>();
-
-        var parameters = new object?[parameterInfos.Length];
-        for (var i = 0; i < parameterInfos.Length; i++)
-        {
-            if (cancellationToken.IsCancellationRequested) return parameters;
-
-            var parameterInfo = parameterInfos[i];
-
-            var parameterString = await reader.ReadLineAsync(cancellationToken);
-            if (cancellationToken.IsCancellationRequested) return parameters;
-
-            // TODO throw?
-            if (string.IsNullOrWhiteSpace(parameterString)) continue;
-            parameters[i] = JsonConvert.DeserializeObject(parameterString, parameterInfo.ParameterType, SerializationConstants.JsonSettings);
-        }
-
-        return parameters;
-    }
+		}
+	}
 }
