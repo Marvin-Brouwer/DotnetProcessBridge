@@ -14,8 +14,15 @@ internal sealed class DelegateBuilder
         var delegates = new DelegateMap();
         var interfaceType = typeof(TInterface);
         foreach (var method in interfaceType.GetMethods())
-        {
-            var key = interfaceType.FullName + '.' + method.Name;
+		{
+			if (method.ReturnType == typeof(Task<>))
+				throw new NotSupportedException("Not yet supported");
+			if (method.ReturnType == typeof(Task))
+				throw new NotSupportedException("Not yet supported");
+			if (method.ReturnType == typeof(IAsyncResult))
+				throw new NotSupportedException("Not yet supported");
+
+			var key = interfaceType.FullName + '.' + method.Name;
             BridgeDelegate delegateFunc = (parameters) => method.Invoke(handler, parameters);
             delegates.Add(key, (delegateFunc, method));
         }

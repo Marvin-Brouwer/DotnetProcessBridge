@@ -11,7 +11,7 @@ Console.WriteLine(result1);
 
 try
 {
-	client.Dispatch.ThrowException("This is a test");
+	client.Dispatch.ThrowException();
 }
 catch (Exception ex)
 {

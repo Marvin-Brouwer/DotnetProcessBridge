@@ -38,8 +38,8 @@ internal sealed class TestExample : IExample
 		return string.Join(" ", prefix, "acf70d64-60c9-4e8c-a716-99e831d26e78", postfix);
 	}
 
-	public string ThrowException(string message)
+	public void ThrowException()
 	{
-		throw new AccessViolationException(message);
+		throw new AccessViolationException("This is a test");
 	}
 }

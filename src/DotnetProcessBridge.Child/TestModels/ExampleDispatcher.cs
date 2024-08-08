@@ -21,8 +21,8 @@ internal sealed class ExampleDispatcher : IDispatcher, IExample
 		return Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!, prefix, postfix);
 	}
 
-	string IExample.ThrowException(string message)
+	void IExample.ThrowException()
 	{
-		return Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!, message);
+		Sender.Dispatch<string>(MethodBase.GetCurrentMethod()!);
 	}
 }
