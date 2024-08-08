@@ -36,7 +36,7 @@ internal static class InvocationExtensions
 				CreateNoWindow = true,
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
-				RedirectStandardError = true,
+				RedirectStandardError = true
 			}
 		};
 

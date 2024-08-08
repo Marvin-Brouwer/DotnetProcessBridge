@@ -78,8 +78,21 @@ This looks like this:
 ```csharp
 await using var server = ProcessBridge.CreateServer<IExample, TestExample>();
 
-// This is where you start the other process, pass it server.Handle in the parameters
+var process = new Process
+{
+	StartInfo = new ProcessStartInfo
+	{
+		FileName = "SomeProcess.exe",
+		CreateNoWindow = true,
+		UseShellExecute = false,
+		RedirectStandardOutput = true,
+		// Pass the server handle to the child process
+		Arguments = server.Handle
+	}
+};
 
+process.Start();
+process.WaitForExit();
 ```
 
 ### Client registration
