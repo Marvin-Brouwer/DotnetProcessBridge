@@ -78,7 +78,7 @@ This looks like this:
 ```csharp
 await using var server = ProcessBridge.CreateServer<IExample, TestExample>();
 
-// This is where you start the other process
+// This is where you start the other process, pass it server.Handle in the parameters
 
 ```
 
@@ -89,10 +89,9 @@ You register your types and wait for a connection, this will setup a connection 
 However, as far as your application is concerned, now you have an interface to use.
 
 ```csharp
-var readHandle = args[0];
-var writeHandle = args[1];
+var handle = args[0];
 
-await using var client = ProcessBridge.CreateClient<IExample, ExampleDispatcher>(readHandle, writeHandle);
+await using var client = ProcessBridge.CreateClient<IExample, ExampleDispatcher>(handle);
 await client.WaitForConnection();
 
 // Give this to your IOC container

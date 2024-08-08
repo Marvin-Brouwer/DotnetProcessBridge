@@ -13,8 +13,7 @@ public sealed class ProcessBridgeServer<TInterface> : IAsyncDisposable
     private readonly AnonymousPipeServerStream _writeStream;
     private readonly MessageReceiver _messageReceiver;
 
-    public string ReadHandle { get; }
-    public string WriteHandle { get; }
+    public string Handle { get; }
 
     internal ProcessBridgeServer(TInterface handler, CancellationToken cancellationToken)
     {
@@ -23,9 +22,11 @@ public sealed class ProcessBridgeServer<TInterface> : IAsyncDisposable
 
 		// Create 2 anonymous pipes (read and write) for duplex communications (each pipe is one-way)
 		_readStream = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
-        ReadHandle = _readStream.GetClientHandleAsString();
         _writeStream = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
-        WriteHandle = _writeStream.GetClientHandleAsString();
+
+		var readHandle = _readStream.GetClientHandleAsString();
+		var writeHandle = _writeStream.GetClientHandleAsString();
+		Handle = string.Join("+", readHandle, writeHandle);
 
         _messageReceiver = new MessageReceiver(_readStream, _writeStream, _cancellationToken, DelegateBuilder.BuildDelegates(handler));
         _messageReceiver.Listen();

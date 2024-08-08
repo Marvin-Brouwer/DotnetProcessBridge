@@ -1,10 +1,9 @@
 using DotnetProcessBridge;
 using DotnetProcessBridge.Child.TestModels;
 
-var readHandle = args[0];
-var writeHandle = args[1];
+var handle = args[0];
 
-await using var client = ProcessBridge.CreateClient<IExample, ExampleDispatcher>(readHandle, writeHandle);
+await using var client = ProcessBridge.CreateClient<IExample, ExampleDispatcher>(handle);
 await client.WaitForConnection();
 
 var result1 = client.Dispatch.AppendGuid("AAA", "BBB");

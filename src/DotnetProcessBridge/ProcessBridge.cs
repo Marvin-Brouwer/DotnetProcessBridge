@@ -17,11 +17,16 @@ public static class ProcessBridge
         return new ProcessBridgeServer<TInterface>(handler, cancellationToken ?? CancellationToken.None);
     }
 
-    public static IProcessBridgeClient<TInterface> CreateClient<TInterface, TDispatcher>(string readHandle, string writeHandle, CancellationToken? cancellationToken = default)
+    public static IProcessBridgeClient<TInterface> CreateClient<TInterface, TDispatcher>(string handle, CancellationToken? cancellationToken = default)
         where TDispatcher : TInterface, IDispatcher, new()
     {
+        Guard.Against.NullOrWhiteSpace(handle);
+		var handles = handle.Split("+");
+		var readHandle = handles[0];
+		var writeHandle = handles[1];
+
         Guard.Against.NullOrWhiteSpace(readHandle);
-        Guard.Against.NullOrWhiteSpace(writeHandle);
+		Guard.Against.NullOrWhiteSpace(writeHandle);
         Guard.Against.InvalidInput(typeof(TInterface), nameof(TInterface), (type) => type.IsInterface);
 
         var dispatcher = new TDispatcher();

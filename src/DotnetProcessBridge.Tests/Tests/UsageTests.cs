@@ -21,8 +21,8 @@ public class UsageTests
 		await using var server = ProcessBridge.CreateServer<IExample, TestExample>();
 
 		var resultOutput = direct
-			? assemblyToTest.InvokeDirect(server.ReadHandle, server.WriteHandle)
-			: await assemblyToTest.InvokeProcess(server.ReadHandle, server.WriteHandle);
+			? assemblyToTest.InvokeDirect(server.Handle)
+			: await assemblyToTest.InvokeProcess(server.Handle);
 
 		var results = resultOutput.Split(Environment.NewLine);
 		results[0].Should().BeEquivalentTo("AAA acf70d64-60c9-4e8c-a716-99e831d26e78 BBB");
