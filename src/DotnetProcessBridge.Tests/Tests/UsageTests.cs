@@ -75,4 +75,9 @@ internal sealed class TestExample : IExample
 	{
 		throw new AccessViolationException("This is a test");
 	}
+
+	public Task RandomDelay()
+	{
+		return Task.Delay(Random.Shared.Next(100));
+	}
 }

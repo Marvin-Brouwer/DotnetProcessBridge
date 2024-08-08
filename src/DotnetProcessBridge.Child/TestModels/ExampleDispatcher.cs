@@ -49,4 +49,9 @@ internal sealed class ExampleDispatcher : IDispatcher, IExample
 	{
 		return Sender.DispatchValueTask(MethodBase.GetCurrentMethod()!);
 	}
+
+	Task IExample.RandomDelay()
+	{
+		return Sender.DispatchTask(MethodBase.GetCurrentMethod()!);
+	}
 }

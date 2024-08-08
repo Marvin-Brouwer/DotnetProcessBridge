@@ -10,4 +10,5 @@ public interface IExample
 
 	Task<string> AsyncTest();
 	Task AsyncThrow();
+	Task RandomDelay();
 }

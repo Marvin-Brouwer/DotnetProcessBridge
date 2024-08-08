@@ -58,3 +58,12 @@ catch (Exception ex)
 {
 	Console.WriteLine(ex.Message);
 }
+
+// This is to test whether async results mess with the system
+await Task.WhenAll(
+	client.Dispatch.RandomDelay(),
+	client.Dispatch.RandomDelay(),
+	client.Dispatch.RandomDelay(),
+	client.Dispatch.RandomDelay(),
+	client.Dispatch.RandomDelay()
+);
