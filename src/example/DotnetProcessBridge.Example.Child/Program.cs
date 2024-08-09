@@ -1,9 +1,9 @@
 using DotnetProcessBridge;
-using DotnetProcessBridge.Child.TestModels;
+using DotnetProcessBridge.Example.Child.Models;
 
 using System.Diagnostics;
 
-// This is just in case
+// This is just in case the process hangs
 var ctx = Debugger.IsAttached
 	? new CancellationTokenSource()
 	: new CancellationTokenSource(TimeSpan.FromMinutes(1));

@@ -2,6 +2,7 @@ using DotnetProcessBridge.Constants;
 
 using Newtonsoft.Json;
 
+using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Reflection;
 
@@ -22,19 +23,20 @@ internal sealed class MessageReceiver
         _writeStream = writeStream;
         _handlers = handlers;
         _cancellationToken = cancellationToken;
-    }
+
+	}
 
     public void Listen() {
-        var succesfullyQueued = ThreadPool.QueueUserWorkItem(async r => await r.ListenToStream(), this, false);
+        var succesfullyQueued = ThreadPool.QueueUserWorkItem(ListenToStream, this, false);
 
         // If we are out of threads just start a new Task in the scheduler
         if (!succesfullyQueued)
         {
-            _ = Task.Factory.StartNew(_ => ListenToStream(), TaskCreationOptions.LongRunning, _cancellationToken);
-        }
+            _ = Task.Factory.StartNew(ListenToStream, null, _cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Current);
+		}
     }
 
-    private async Task ListenToStream()
+    private async void ListenToStream<T>(T? _ = default)
     {
         using var reader = new StreamReader(_readStream, leaveOpen: true);
         using var writer = new StreamWriter(_writeStream, leaveOpen: true);

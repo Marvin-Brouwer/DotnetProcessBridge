@@ -28,6 +28,7 @@ public sealed class ProcessBridgeClient<TInterface, TDispatch> : IProcessBridgeC
         var messageSender = new MessageSender(_readStream, _writeStream, _cancellationToken);
         dispatcher.Sender = messageSender;
         Dispatch = dispatcher;
+		messageSender.Listen();
     }
 
     public TInterface Dispatch { get; }

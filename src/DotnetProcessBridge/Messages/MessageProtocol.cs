@@ -29,6 +29,13 @@ internal static class MessageProtocol
 		internal const char Spacer = (char)0;
 	}
 
+	public static string CreateId()
+	{
+		var ticks = new DateTime(2016, 1, 1).Ticks;
+		var timeId = DateTime.Now.Ticks - ticks;
+		return timeId.ToString(IdFormat);
+	}
+
 	/// <summary>
 	/// Writes
 	/// <code>
@@ -36,12 +43,12 @@ internal static class MessageProtocol
 	/// {ParamStart}<paramref name="args"/>[n]{NewLine}...
 	/// </code>
 	/// </summary>
-	public static void WriteMethodCall(this StreamWriter writer, long id, string methodName, object?[] parameters, CancellationToken cancellationToken)
+	public static void WriteMethodCall(this StreamWriter writer, string id, string methodName, object?[] parameters, CancellationToken cancellationToken)
 	{
 		if (cancellationToken.IsCancellationRequested) return;
 
 		writer.Write(Marker.Method);
-		writer.Write(id.ToString(IdFormat));
+		writer.Write(id);
 
 		writer.WriteLine(methodName);
 		foreach (var parameter in parameters)
@@ -186,22 +193,17 @@ internal static class MessageProtocol
 		await writer.FlushAsync(cancellationToken);
 	}
 
-	public static (bool isResult, TReturn result) ReadResult<TReturn>(this StreamReader reader, long expectedId, Type returnType, CancellationToken cancellationToken)
+	public static (string id, Func<Type, object?> result)? ReadResult(this StreamReader reader, CancellationToken cancellationToken)
 	{
-		if (cancellationToken.IsCancellationRequested) return (false, default!);
+		if (cancellationToken.IsCancellationRequested) return null;
 
 		var nextByte = reader.Peek();
-		if (nextByte == -1) return (false, default!);
+		if (nextByte == -1) return null;
 
-		if ((char)nextByte != Marker.Result && (byte)nextByte != Marker.Exception) return (false, default!);
+		if ((char)nextByte != Marker.Result && (byte)nextByte != Marker.Exception) return null;
 		_ = reader.Read();
 
 		var id = ReadId(reader);
-		if (id != expectedId.ToString(IdFormat))
-		{
-			// TODO read into concurrent dictionary and unref by id instead of reading sequentially
-			throw new NotImplementedException("TODO read into concurrent dictionary and unref by id instead of reading sequentially");
-		}
 
 		// Skip spacer
 		_ = reader.Read();
@@ -210,17 +212,17 @@ internal static class MessageProtocol
 
 		if ((char)nextByte == Marker.Result)
 		{
-			if (returnType == typeof(void)) return (true, default!);
-			// TODO throw
-			if (string.IsNullOrWhiteSpace(returnString)) return (false, default!);
+			if (string.IsNullOrWhiteSpace(returnString)) return (id, (_) => default!);
 
-			var returnValue = JsonConvert.DeserializeObject<TReturn>(returnString, SerializationConstants.JsonSettings)!;
-			return (true, returnValue);
+			return (id, (Type type) => {
+				var returnValue = JsonConvert.DeserializeObject(returnString, SerializationConstants.JsonSettings)!;
+				return returnValue;
+			});
 		}
 		if ((char)nextByte == Marker.Exception)
 		{
 			// TODO throw
-			if (string.IsNullOrWhiteSpace(returnString)) return (false, default!);
+			if (string.IsNullOrWhiteSpace(returnString)) return null;
 
 			// Find the first index of this, so we don't need to do string escape gymnastics in the serialized result.
 			var spacerPosition = returnString.IndexOf(Marker.Spacer);
@@ -230,7 +232,7 @@ internal static class MessageProtocol
 
 			// TODO is it worth cleaning up the exception stack?
 			var exception = (Exception)JsonConvert.DeserializeObject(exceptionData, exceptionType, SerializationConstants.JsonSettings)!;
-			throw exception;
+			return (id, (_) => throw exception);
 		}
 
 		throw new UnreachableException();

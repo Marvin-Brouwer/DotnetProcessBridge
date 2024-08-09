@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 
 namespace DotnetProcessBridge.Tests.ExternalInvocation;
 
@@ -8,12 +9,15 @@ internal static class InvocationExtensions
 	/// <summary>
 	/// Invoke the EntryPoint of the assembly, pretending to invoke a process.
 	/// </summary>
-	internal static string InvokeDirect(this Assembly assembly, params string[] arguments)
+	internal static async Task<string> InvokeDirect(this Assembly assembly, params string[] arguments)
 	{
 		using var stringWriter = new StringWriter();
 		Console.SetOut(stringWriter);
 
-		var resultTask = assembly.EntryPoint!.Invoke(assembly.EntryPoint, [arguments]);
+		var resultTask = await Task.Factory.StartNew(_ =>
+			assembly.EntryPoint!.Invoke(assembly.EntryPoint, [arguments]), null,
+			CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Current
+		);
 
 		return stringWriter.ToString();
 	}

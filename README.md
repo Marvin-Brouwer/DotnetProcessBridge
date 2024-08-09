@@ -1,8 +1,9 @@
 > [!CAUTION]  
 > This project is an experiment, it's meant to illustrate the possibility.  
 >
-> - It has not been tested on thread safety (unplanned)
-> - It does not support generics (currently)
+> - It has not been properly tested on thread safety (unplanned)
+>   It does seem to work neatly with tasks though
+> - It has not been tested with generics (currently)
 > - Exception stack traces are chaos (currently)
 
 <span></span>

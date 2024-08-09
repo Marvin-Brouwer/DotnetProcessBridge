@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace DotnetProcessBridge.Messages;
 
@@ -10,48 +12,104 @@ internal sealed class MessageSender : IMessageSender
     private readonly PipeStream _writeStream;
     private readonly CancellationToken _cancellationToken;
 
-    public MessageSender(PipeStream readStream, PipeStream writeStream, CancellationToken cancellationToken)
+	private readonly static ConcurrentDictionary<string, Func<Type, object?>> _results = new();
+
+	public MessageSender(PipeStream readStream, PipeStream writeStream, CancellationToken cancellationToken)
     {
         _readStream = readStream;
         _writeStream = writeStream;
         _cancellationToken = cancellationToken;
-    }
-
-	public ValueTask<TReturn> DispatchValueTask<TReturn>(MethodBase method, object?[] parameters)
-	{
-		return new ValueTask<TReturn>(DispatchTask<TReturn>(method, parameters));
 	}
-	public ValueTask DispatchValueTask(MethodBase method, object?[] parameters)
+
+	public void Listen()
 	{
-		return new ValueTask(DispatchTask(method, parameters));
+		var succesfullyQueued = ThreadPool.QueueUserWorkItem(ListenToStream, this, false);
+
+		// If we are out of threads just start a new Task in the scheduler
+		if (!succesfullyQueued)
+		{
+			_ = Task.Factory.StartNew(ListenToStream, null, _cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Current);
+		}
+	}
+
+	// TODO this can be async now
+	private void ListenToStream<T>(T? _ = default)
+	{
+		using var reader = new StreamReader(_readStream, leaveOpen: true);
+
+		while (!_cancellationToken.IsCancellationRequested)
+		{
+			if (!_readStream.IsConnected) continue;
+			if (!_writeStream.IsConnected) continue;
+			if (!_readStream.CanRead) continue;
+
+
+			TryAddStreamedFunc(reader);
+		}
+	}
+
+	public async ValueTask<TReturn> DispatchValueTask<TReturn>(MethodBase method, object?[] parameters)
+	{
+		return await DispatchTask<TReturn>(method, parameters);
+	}
+	public async ValueTask DispatchValueTask(MethodBase method, object?[] parameters)
+	{
+		await DispatchTask(method, parameters);
 	}
 
 	public Task<TReturn> DispatchTask<TReturn>(MethodBase method, object?[] parameters)
-    {
-		try
+	{
+		var tcs = new TaskCompletionSource<TReturn>();
+		var succesfullyQueued = ThreadPool.QueueUserWorkItem(RunDispatch, false);
+
+		// If we are out of threads just start a new Task in the scheduler
+		if (!succesfullyQueued)
 		{
-			var result = Dispatch<TReturn>(method, parameters);
-			return Task.FromResult(result);
+			_ = Task.Factory.StartNew(RunDispatch, null, _cancellationToken, TaskCreationOptions.None, TaskScheduler.Current);
 		}
-		catch (Exception ex)
+		return tcs.Task;
+
+		void RunDispatch(object? _)
 		{
-			return Task.FromException<TReturn>(ex);
+			try
+			{
+				var result = Dispatch<TReturn>(method, parameters);
+				tcs.SetResult(result);
+			}
+			catch (Exception ex)
+			{
+				tcs.SetException(ex);
+			}
 		}
 	}
     public Task DispatchTask(MethodBase method, object?[] parameters)
 	{
-		try
+		var tcs = new TaskCompletionSource();
+		var succesfullyQueued = ThreadPool.QueueUserWorkItem(RunDispatch, false);
+
+		// If we are out of threads just start a new Task in the scheduler
+		if (!succesfullyQueued)
 		{
-			Dispatch(method, parameters);
-			return Task.CompletedTask;
+			_ = Task.Factory.StartNew(RunDispatch, null, _cancellationToken, TaskCreationOptions.None, TaskScheduler.Current);
 		}
-		catch (Exception ex)
+
+		return tcs.Task;
+
+		void RunDispatch(object? _)
 		{
-			return Task.FromException(ex);
+			try
+			{
+				Dispatch(method, parameters);
+				tcs.SetResult();
+			}
+			catch (Exception ex)
+			{
+				tcs.SetException(ex);
+			}
 		}
 	}
 
-    public TReturn Dispatch<TReturn>(MethodBase method, object?[] parameters)
+	public TReturn Dispatch<TReturn>(MethodBase method, object?[] parameters)
     {
         return Dispatch<TReturn>(method, typeof(TReturn), parameters);
     }
@@ -65,8 +123,7 @@ internal sealed class MessageSender : IMessageSender
         using var writer = new StreamWriter(_writeStream, leaveOpen: true);
         // This method base comes with the full type name, as opposed to regular reflection.
         var methodName = method.Name;
-		var ticks = new DateTime(2016, 1, 1).Ticks;
-		var timeId = DateTime.Now.Ticks - ticks;
+		var timeId = MessageProtocol.CreateId();
 
 		if (_cancellationToken.IsCancellationRequested) return default!;
 		writer.WriteMethodCall(timeId, methodName, parameters, _cancellationToken);
@@ -78,17 +135,36 @@ internal sealed class MessageSender : IMessageSender
 
         using var reader = new StreamReader(_readStream, leaveOpen: true);
         while (!_cancellationToken.IsCancellationRequested)
-        {
-            if (!_readStream.CanRead) continue;
-			var (isResult, returnvalue) = reader.ReadResult<TReturn>(timeId, returnType, _cancellationToken);
+		{
+			var resultFunc = TryGetStoredFunc<TReturn>(timeId);
+			if (resultFunc is null) continue;
 
-			if (!isResult) continue;
+			var returnValue = resultFunc();
+
 			if (returnType == typeof(void)) return default!;
 			if (returnType == typeof(Task)) return default!;
 			if (returnType == typeof(ValueTask)) return default!;
-			return returnvalue;
-        }
 
-        throw new UnreachableException();
+			return returnValue;
+		}
+
+		if (_cancellationToken.IsCancellationRequested) return default!;
+		throw new UnreachableException();
     }
+
+	private void TryAddStreamedFunc(StreamReader reader)
+	{
+		if (!_readStream.CanRead) return;
+		var result = reader.ReadResult(_cancellationToken);
+		if (result is null) return;
+		var (id, resultFunc) = result.Value;
+
+		_results.TryAdd(id, resultFunc);
+	}
+
+	private Func<TReturn>? TryGetStoredFunc<TReturn>(string timeId)
+	{
+		if (!_results.TryRemove(timeId, out var storedResultFunc)) return null;
+		return Unsafe.As<Func<TReturn>>(() => storedResultFunc(typeof(TReturn)));
+	}
 }
